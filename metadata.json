@@ -1,0 +1,5 @@
+{
+  "name": "Docx Table Extractor",
+  "description": "An AI-powered utility that processes Word documents, stripping away all text and images to preserve only the tables containing data.",
+  "requestFramePermissions": []
+}
