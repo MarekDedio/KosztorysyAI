@@ -8,32 +8,30 @@ interface PricingTier {
 
 interface ProcessingOptions {
   removeUoRows?: boolean;
-  preserveLp?: boolean; // If true, keeps original Lp. If false, re-indexes 1..N
-  weBasePrice?: number; // Configurable price for WE treatments
-  useSpecificWePrices?: boolean; // Whether to use separate prices for W2t/W4t
+  preserveLp?: boolean;
+  wePrice?: number;
   w2tPrice?: number;
   w4tPrice?: number;
   // CS Customization
-  useCustomCsPricing?: boolean;
   csMultiplier?: number;
   customCsPrices?: number[]; // Array of prices matching the indices of DEFAULT_PRICING_SCHEDULE
 }
 
 // Pricing compartments for CS (Cięcia sanitarne)
 export const DEFAULT_PRICING_SCHEDULE: PricingTier[] = [
-  { min: 0, max: 100, price: 365.00 },
-  { min: 101, max: 150, price: 396.00 },
-  { min: 151, max: 200, price: 424.00 },
-  { min: 201, max: 250, price: 456.00 },
-  { min: 251, max: 300, price: 582.00 },
-  { min: 301, max: 350, price: 648.00 },
-  { min: 351, max: 400, price: 731.00 },
-  { min: 401, max: 450, price: 814.00 },
-  { min: 451, max: 500, price: 825.00 },
-  { min: 501, max: 550, price: 883.00 },
-  { min: 551, max: 600, price: 940.00 },
-  { min: 601, max: 650, price: 998.00 },
-  { min: 651, max: 700, price: 1056.00 },
+  { min: 0, max: 100, price: 730.00 },
+  { min: 101, max: 150, price: 792.00 },
+  { min: 151, max: 200, price: 848.00 },
+  { min: 201, max: 250, price: 912.00 },
+  { min: 251, max: 300, price: 1164.00 },
+  { min: 301, max: 350, price: 1296.00 },
+  { min: 351, max: 400, price: 1462.00 },
+  { min: 401, max: 450, price: 1628.00 },
+  { min: 451, max: 500, price: 1650.00 },
+  { min: 501, max: 550, price: 1766.00 },
+  { min: 551, max: 600, price: 1880.00 },
+  { min: 601, max: 650, price: 1996.00 },
+  { min: 651, max: 700, price: 2112.00 },
 ];
 
 const VAT_RATE = 0.08; // 8%
@@ -48,17 +46,10 @@ export const processTablesWithPricing = (
   let totalNetto = 0;
   let totalBrutto = 0;
 
-  // Determine base prices
-  const baseWePrice = options.weBasePrice !== undefined ? options.weBasePrice : 800.00;
-  
-  // Determine specific prices or fallback to base
-  const w2tPrice = (options.useSpecificWePrices && options.w2tPrice !== undefined) 
-    ? options.w2tPrice 
-    : baseWePrice;
-    
-  const w4tPrice = (options.useSpecificWePrices && options.w4tPrice !== undefined) 
-    ? options.w4tPrice 
-    : baseWePrice;
+  // Determine WE prices
+  const wePrice = options.wePrice !== undefined ? options.wePrice : 800.00;
+  const w2tPrice = options.w2tPrice !== undefined ? options.w2tPrice : 800.00;
+  const w4tPrice = options.w4tPrice !== undefined ? options.w4tPrice : 1200.00;
 
   const processedTables = tables.map(table => {
     // We need to identify which column index corresponds to "Circumference" (Obwód)
@@ -101,8 +92,10 @@ export const processTablesWithPricing = (
         const score = getScore(idx);
 
         // Check for Treatment Content
+        const csKeywords: string[] = ['cs', 'cięc', 'ciec', 'cr', 'cp'];
+        
         // CS symbols
-        if (valLower.includes('cs') || valLower.includes('cięc') || valLower.includes('ciec')) {
+        if (csKeywords.some(kw => valLower.includes(kw))) {
            score.treat += 5;
         } 
         // WE symbols (W2t, W4t, WE)
@@ -191,11 +184,41 @@ export const processTablesWithPricing = (
       };
     }
 
-    // --- CALCULATION ---
-    const newHeaders = [...table.headers];
-    // Only add pricing headers if we have headers to begin with
+    // --- CALCULATION & HEADER UPDATES ---
+    // Clone headers or create empty array if undefined
+    const newHeaders = [...(table.headers || [])];
+    
+    // Rename identified columns to match the requested standard report format
+    if (bestCircIdx !== -1 && newHeaders[bestCircIdx]) {
+        newHeaders[bestCircIdx] = "Obwód pnia\nmierz.\nna wys. 130 cm\n[cm]";
+    }
+    if (bestTreatIdx !== -1 && newHeaders[bestTreatIdx]) {
+        newHeaders[bestTreatIdx] = "Zabiegi\npielęgnacyjne";
+    }
+    
+    // Rename other common columns if they exist at expected positions
+    // Check Col 0 for Lp
     if (newHeaders.length > 0) {
-      newHeaders.push("Cena Netto (PLN)", "Cena Brutto (PLN)");
+        const h0 = newHeaders[0].toLowerCase();
+        if (h0.includes('lp') || h0 === '1' || h0 === '' || h0 === 'no') {
+            newHeaders[0] = "Lp.";
+        }
+    }
+    // Check Col 1 for Species (only if it's not the identified circ/treat column)
+    if (newHeaders.length > 1 && bestCircIdx !== 1 && bestTreatIdx !== 1) {
+        const h1 = newHeaders[1].toLowerCase();
+        // Heuristic: if it contains "gatun", "nazwa" or is generally text-like column
+        if (h1.includes('gatun') || h1.includes('nazwa') || h1 === '') {
+             newHeaders[1] = "Nazwa gatunku\n[polska/łacińska]";
+        }
+    }
+
+    // Append the Price Headers
+    if (newHeaders.length > 0) {
+      newHeaders.push(
+          "Wartość\nzabiegów\npielęgnacyjnych\n[netto]\n[PLN]", 
+          "Wartość\nzabiegów\npielęgnacyjnych\n[brutto]\n[PLN]"
+      );
     }
 
     const newRows: string[][] = [];
@@ -207,9 +230,23 @@ export const processTablesWithPricing = (
 
       let rowPriceNetto = 0;
 
-      // 1. Calculate CS Price
-      const isCS = tLower.includes('cs') || tLower.includes('cięc') || tLower.includes('ciec');
-      if (isCS) {
+      // 1. Calculate CS / CR / CP Price
+      let csFamilyTreatmentCount = 0;
+      
+      // Check for CS type treatments
+      if (['cs', 'cięc', 'ciec'].some(kw => tLower.includes(kw))) {
+          csFamilyTreatmentCount++;
+      }
+      // Check for CR type treatments
+      if (['cr'].some(kw => tLower.includes(kw))) {
+          csFamilyTreatmentCount++;
+      }
+      // Check for CP type treatments
+      if (['cp'].some(kw => tLower.includes(kw))) {
+          csFamilyTreatmentCount++;
+      }
+      
+      if (csFamilyTreatmentCount > 0) {
         const match = circCell.match(/(\d+)/);
         if (match) {
           const cm = parseInt(match[1], 10);
@@ -219,20 +256,21 @@ export const processTablesWithPricing = (
             // Start with base price from default schedule
             let basePrice = DEFAULT_PRICING_SCHEDULE[tierIndex].price;
             
-            // Override if custom pricing is enabled and provided
-            if (options.useCustomCsPricing && options.customCsPrices && options.customCsPrices[tierIndex] !== undefined) {
+            // Override with custom pricing if provided
+            if (options.customCsPrices && options.customCsPrices[tierIndex] !== undefined) {
                basePrice = options.customCsPrices[tierIndex];
             }
 
-            // Apply Multiplier if enabled
-            if (options.useCustomCsPricing && options.csMultiplier !== undefined) {
-              basePrice = basePrice * options.csMultiplier;
+            // Apply Multiplier
+            if (options.csMultiplier !== undefined) {
+              basePrice = Math.ceil(basePrice * options.csMultiplier);
             }
 
-            rowPriceNetto += basePrice;
+            rowPriceNetto += (basePrice * csFamilyTreatmentCount);
           }
         }
       }
+
 
       // 2. Calculate WE / W2t / W4t Price
       
@@ -249,7 +287,7 @@ export const processTablesWithPricing = (
       } else if (tLower.includes('w2t')) {
         rowPriceNetto += (w2tPrice * multiplier);
       } else if (/\bwe\b/i.test(tLower)) {
-        rowPriceNetto += (baseWePrice * multiplier);
+        rowPriceNetto += (wePrice * multiplier);
       }
 
       // Add VAT and push
