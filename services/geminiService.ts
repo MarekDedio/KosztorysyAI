@@ -46,6 +46,7 @@ export const extractTablesFromDocx = async (file: File): Promise<ExtractionResul
       Look at the very beginning of the document (before any tables) for header lines.
       - 'title': The main document title. Often in UPPERCASE. Example: "KOSZTORYS NA WYKONANIE PRAC...".
       - 'location': The specific place name or address. Example: "Cmentarz komunalny w miejscowości...", "Park miejski...", "Aleja...".
+      - 'townName': From the 'location' text, extract ONLY the main town/city/village name. It should be a single word or a short phrase. For example, if location is "Cmentarz komunalny w miejscowości Sopot", townName should be "Sopot". If location is "Park miejski Warszawa", townName should be "Warszawa". If no clear town name can be found, leave this field empty.
       - 'administrativeDetails': Administrative region details. Look for keywords like "gmina", "powiat", "woj.".
       
       TASK 2: Extract Tables
@@ -88,6 +89,7 @@ export const extractTablesFromDocx = async (file: File): Promise<ExtractionResul
               properties: {
                 title: { type: Type.STRING, nullable: true },
                 location: { type: Type.STRING, nullable: true },
+                townName: { type: Type.STRING, nullable: true },
                 administrativeDetails: { type: Type.STRING, nullable: true },
               },
             },

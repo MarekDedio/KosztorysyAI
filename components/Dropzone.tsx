@@ -1,5 +1,5 @@
 import React, { useCallback, useState } from 'react';
-import { Upload, FileText, AlertCircle } from 'lucide-react';
+import { Upload, FileText, AlertCircle, Leaf } from 'lucide-react';
 
 interface DropzoneProps {
   onFileSelected: (file: File) => void;
@@ -42,8 +42,6 @@ const Dropzone: React.FC<DropzoneProps> = ({ onFileSelected, disabled }) => {
 
   const validateAndPassFile = (file: File) => {
     setError(null);
-    // Check for docx extension or MIME type
-    // MIME for docx: application/vnd.openxmlformats-officedocument.wordprocessingml.document
     if (
       file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' || 
       file.name.endsWith('.docx')
@@ -55,14 +53,16 @@ const Dropzone: React.FC<DropzoneProps> = ({ onFileSelected, disabled }) => {
   };
 
   return (
-    <div className="w-full max-w-2xl mx-auto">
+    <div className="w-full max-w-2xl mx-auto group">
       <div
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
         className={`
-          relative border-2 border-dashed rounded-xl p-10 transition-all duration-200 ease-in-out text-center
-          ${isDragging ? 'border-blue-500 bg-blue-50' : 'border-slate-300 bg-white hover:bg-slate-50'}
+          relative border-2 border-dashed rounded-2xl p-12 transition-all duration-300 ease-in-out text-center overflow-hidden
+          ${isDragging 
+            ? 'border-emerald-500 bg-emerald-50 scale-[1.02] shadow-xl dark:bg-emerald-950/30' 
+            : 'border-stone-300 bg-white hover:border-emerald-400 hover:bg-stone-50 dark:border-stone-700 dark:bg-stone-800/40 dark:hover:bg-stone-800'}
           ${disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}
         `}
       >
@@ -71,27 +71,35 @@ const Dropzone: React.FC<DropzoneProps> = ({ onFileSelected, disabled }) => {
           accept=".docx"
           onChange={handleFileInput}
           disabled={disabled}
-          className="absolute inset-0 w-full h-full opacity-0 cursor-pointer disabled:cursor-not-allowed"
+          className="absolute inset-0 w-full h-full opacity-0 cursor-pointer disabled:cursor-not-allowed z-10"
         />
         
-        <div className="flex flex-col items-center justify-center space-y-4 pointer-events-none">
-          <div className={`p-4 rounded-full ${isDragging ? 'bg-blue-100 text-blue-600' : 'bg-slate-100 text-slate-500'}`}>
-            {isDragging ? <Upload size={32} /> : <FileText size={32} />}
+        {/* Background Decorative Element */}
+        <div className="absolute -bottom-10 -right-10 text-emerald-50 dark:text-emerald-900/20 pointer-events-none transition-transform duration-500 group-hover:scale-110">
+          <Leaf size={180} strokeWidth={0.5} />
+        </div>
+
+        <div className="relative z-0 flex flex-col items-center justify-center space-y-6 pointer-events-none">
+          <div className={`
+            p-5 rounded-2xl shadow-sm transition-colors duration-300
+            ${isDragging ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900 dark:text-emerald-300' : 'bg-stone-100 text-stone-500 dark:bg-stone-700 dark:text-stone-400'}
+          `}>
+            {isDragging ? <Upload size={40} /> : <FileText size={40} />}
           </div>
-          <div className="space-y-1">
-            <p className="text-lg font-medium text-slate-700">
-              {isDragging ? "Upuść plik tutaj" : "Kliknij, aby przesłać lub przeciągnij plik"}
-            </p>
-            <p className="text-sm text-slate-500">
-              Tylko dokumenty Microsoft Word (.docx)
+          <div className="space-y-2">
+            <h3 className="text-xl font-serif font-medium text-stone-800 dark:text-stone-200">
+              {isDragging ? "Upuść plik kosztorysu" : "Prześlij plik inwentaryzacji"}
+            </h3>
+            <p className="text-sm text-stone-500 dark:text-stone-400 max-w-xs mx-auto">
+              Kliknij lub przeciągnij dokument .docx, aby rozpocząć automatyczną wycenę.
             </p>
           </div>
         </div>
       </div>
       
       {error && (
-        <div className="mt-4 flex items-center gap-2 text-red-600 bg-red-50 p-3 rounded-lg text-sm">
-          <AlertCircle size={16} />
+        <div className="mt-4 flex items-center gap-3 text-red-700 bg-red-50 border border-red-100 p-4 rounded-xl text-sm shadow-sm dark:bg-red-950/30 dark:border-red-900/50 dark:text-red-300">
+          <AlertCircle size={18} />
           <span>{error}</span>
         </div>
       )}

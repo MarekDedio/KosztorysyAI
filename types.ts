@@ -7,6 +7,7 @@ export interface ExtractedTable {
 export interface DocumentMetadata {
   title?: string;
   location?: string;
+  townName?: string;
   administrativeDetails?: string;
 }
 
